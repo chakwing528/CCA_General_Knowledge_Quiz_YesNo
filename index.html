@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>常識問答比賽系統 -對錯- V4</title>
+    <title>常識問答比賽系統 -對錯- V5</title>
     <style>
         :root {
             --setup-color: #d35400; --admin-color: #2980b9; --game-color: #27ae60;
@@ -21,7 +21,6 @@
         .scoreboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; width: 100%; flex-shrink: 0; transition: 0.5s; }
         .scoreboard.has-winner .team-card:not(.winner-active), .team-card.already-tried:not(.winner-active) { filter: brightness(0.2) grayscale(0.8) !important; opacity: 0.4 !important; box-shadow: none !important; }
 
-        /* 隊伍圖片區域 350px */
         .team-card { 
             height: 350px; position: relative; overflow: hidden; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.9); 
@@ -38,9 +37,15 @@
         .display-area { background: white; width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-top: 1px solid #ddd; position: relative; padding-bottom: 80px; }
         .q-badge { position: absolute; bottom: 20px; right: 20px; background: #57606f; color: white; padding: 8px 25px; border-radius: 30px; font-size: 16px; font-weight: bold; z-index: 5; }
         
-        .q-text { display: none; }
+        /* 待機畫面樣式 (新增) */
+        #standby-overlay {
+            position: absolute; inset: 0; z-index: 100; 
+            background-color: #1e272e; background-size: cover; background-position: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; transition: 0.5s;
+        }
+        #standby-overlay h1 { font-size: 80px; text-shadow: 0 5px 20px rgba(0,0,0,0.5); }
 
-        /* 清晰顯示倒數計時 */
         #timer-display { 
             position: absolute; right: 5%; top: 15%; transform: translateY(-50%); 
             font-size: 100px; font-weight: 900; color: var(--error); 
@@ -49,15 +54,8 @@
         }
         @keyframes pulse-timer { 0% { transform: translateY(-50%) scale(1); } 50% { transform: translateY(-50%) scale(1.1); } 100% { transform: translateY(-50%) scale(1); } }
 
-        /* 判定按鈕區域 */
-        .judge-grid { 
-            display: flex; gap: 30px; width: 90%; max-width: 800px; justify-content: center; transition: 0.3s;
-        }
-        .judge-grid.locked { 
-            pointer-events: none; 
-            opacity: 0.2; 
-            filter: grayscale(1);
-        }
+        .judge-grid { display: flex; gap: 30px; width: 90%; max-width: 800px; justify-content: center; transition: 0.3s; }
+        .judge-grid.locked { pointer-events: none; opacity: 0.2; filter: grayscale(1); }
 
         .judge-btn { 
             flex: 1; height: 140px; font-size: 50px; border-radius: 20px; cursor: pointer; 
@@ -70,8 +68,6 @@
         .btn-wrong { background: var(--error); }
         .btn-wrong:hover { background: #a93226; transform: translateY(-3px); }
         .judge-btn small { font-size: 18px; opacity: 0.8; margin-top: 5px; }
-
-        #g-res { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 32px; color: var(--success); font-weight: 800; display: none; background: #eef9ef; padding: 10px 40px; border-radius: 50px; border: 2px solid var(--success); white-space: nowrap; z-index: 10; }
 
         .controls { background: #1e272e; padding: 0 15px; display: flex; justify-content: space-between; align-items: center; z-index: 200; height: 75px; min-height: 75px; max-height: 75px; box-sizing: border-box; border-top: 1px solid #333; width: 100%; flex-shrink: 0; }
         .controls-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
@@ -89,14 +85,6 @@
         .win-text { font-size: 140px; font-weight: 900; color: var(--gold); position: relative; z-index: 2; text-shadow: 0 5px 20px rgba(0,0,0,0.8); text-transform: uppercase; }
         .win-sub { font-size: 36px; font-weight: bold; position: relative; z-index: 2; color: #fff; margin-top: -10px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 
-        .q-list-item { background: #fdfdfd; padding: 18px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: move; transition: transform 0.2s, box-shadow 0.2s; position: relative; }
-        .q-list-item:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.1); transform: translateY(-2px); }
-        .q-list-item.dragging { opacity: 0.5; background: #eef9ef; border: 2px dashed var(--admin-color); }
-        .q-list-item.drag-top { border-top: 4px solid var(--gold); }
-        .q-list-item.drag-bottom { border-bottom: 4px solid var(--gold); }
-        .q-list-item.drag-top::before, .q-list-item.drag-bottom::before { content: '➤'; position: absolute; left: -25px; color: var(--gold); font-size: 20px; font-weight: bold; }
-        .q-list-item.drag-top::before { top: -14px; }
-        .q-list-item.drag-bottom::before { bottom: -14px; }
         .del-btn { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; white-space: nowrap; margin-left: 15px; pointer-events: auto; }
         .remove-img-btn { background: #7f8c8d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 5px; }
     </style>
@@ -111,11 +99,13 @@
             <button class="ctrl-btn" style="width:100%; margin-top:30px; height:55px; background:var(--game-color); font-size:18px;" onclick="saveState(); alert('設定已成功儲存！')">確認儲存隊伍設定</button>
         </div>
         <div class="admin-box">
-            <h3>系統音效設定</h3>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:30px;">
+            <h3>系統音效與待機設定</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
                 <div><label>🟢 正確音效</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'correct')"></div>
                 <div><label>🔴 錯誤音效</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'wrong')"></div>
                 <div><label>🔔 搶答成功音效</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'buzzer')"></div>
+                <div><label>🎵 待機背景音樂</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'standby_music')"></div>
+                <div><label>🖼️ 待機畫面圖片</label><input type="file" accept="image/*" onchange="loadStandbyImg(event)"></div>
             </div>
         </div>
     </div>
@@ -141,18 +131,8 @@
             </div>
             <hr>
             <h3>新增題目紀錄</h3>
-            <div style="display:grid; grid-template-columns: 1.5fr 1fr 1fr; gap:15px;">
-                <div><label>題型 (僅供紀錄)</label><select id="q-type"><option value="Judgement">評判判定模式</option></select></div>
-                <div><label style="color:var(--success)">✅ 答對分數</label><input type="number" id="pts-win" value="10"></div>
-                <div><label style="color:var(--error)">❌ 答錯扣分</label><input type="number" id="pts-lose" value="5"></div>
-            </div>
-            <label style="margin-top:15px; display:block;">題目類別</label>
-            <div class="type-selector">
-                <div class="type-opt active" id="type-comp" onclick="setQCategory('compulsory')">必答題</div>
-                <div class="type-opt" id="type-toss" onclick="setQCategory('tossup')">搶答題</div>
-            </div>
             <textarea id="q-input-text" placeholder="請在此輸入題目內容 (僅供管理員參考)..." rows="3" style="font-size:18px;"></textarea>
-            <button class="ctrl-btn" style="width:100%; margin-top:25px; background:var(--admin-color); height:55px; font-size:18px;" onclick="addQ()">✅ 儲存題目</button>
+            <button class="ctrl-btn" style="width:100%; margin-top:10px; background:var(--admin-color); height:45px;" onclick="addQ()">✅ 儲存題目</button>
         </div>
         <div class="admin-box"><h3>題目清單</h3><div id="q-list"></div></div>
     </div>
@@ -161,16 +141,15 @@
 <div id="game" class="content-section">
     <div class="scoreboard" id="game-sb"></div>
     <div class="display-area">
+        <div id="standby-overlay">
+            <h1>比賽即將開始</h1>
+            <button class="ctrl-btn" style="height:60px; width:200px; font-size:20px; background:var(--game-color);" onclick="toggleStandby(false)">進入比賽介面</button>
+        </div>
+
         <div id="timer-display">20</div>
         <div class="judge-grid" id="judge-ui">
-            <button class="judge-btn btn-correct" onclick="judgeAnswer(true)">
-                ✅ 對
-                <small>Correct</small>
-            </button>
-            <button class="judge-btn btn-wrong" onclick="judgeAnswer(false)">
-                ❌ 錯
-                <small>Wrong</small>
-            </button>
+            <button class="judge-btn btn-correct" onclick="judgeAnswer(true)">✅ 對 <small>Correct</small></button>
+            <button class="judge-btn btn-wrong" onclick="judgeAnswer(false)">❌ 錯 <small>Wrong</small></button>
         </div>
         <div id="g-res"></div>
         <div id="g-badge" class="q-badge">準備開始</div>
@@ -179,7 +158,7 @@
 
 <div class="controls">
     <div class="controls-left">
-        <span class="version-label">-對錯- V4</span>
+        <span class="version-label">-對錯- V5</span>
         <div class="tab-group">
             <button class="nav-btn tab-setup" onclick="showTab('setup')">設定</button>
             <button class="nav-btn tab-admin" onclick="showTab('admin')">管理</button>
@@ -187,6 +166,8 @@
         </div>
     </div>
     <div class="controls-right">
+        <button id="btn-standby-toggle" class="ctrl-btn" style="background:#8e44ad; margin-right:10px;" onclick="toggleStandby(true)">待機畫面</button>
+        
         <button class="ctrl-btn" onclick="navQ(-1)">上題</button>
         <button id="btn-next" class="ctrl-btn" onclick="navQ(1)" style="background:var(--admin-color)">下題</button>
         <button id="btn-ans" class="ctrl-btn" style="background:#34495e" onclick="showAnswer()">參考答案</button>
@@ -209,21 +190,69 @@
 <script>
     let questions = JSON.parse(localStorage.getItem('qz_qs')) || [];
     let teams = JSON.parse(localStorage.getItem('qz_teams')) || [{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0}];
-    let audioData = { correct: localStorage.getItem('qz_s1') || '', wrong: localStorage.getItem('qz_s2') || '', buzzer: localStorage.getItem('qz_s3') || '' };
+    let audioData = { correct: localStorage.getItem('qz_s1') || '', wrong: localStorage.getItem('qz_s2') || '', buzzer: localStorage.getItem('qz_s3') || '', standby_music: localStorage.getItem('qz_s4') || '' };
+    let standbyImg = localStorage.getItem('qz_standby_img') || '';
     let timerSettings = JSON.parse(localStorage.getItem('qz_timers')) || { toss: 20, comp: 30 };
     
     let curIdx = parseInt(localStorage.getItem('qz_curIdx')) || -1;
-    let selectedCat = 'compulsory';
     let winnerIdx = null, buzzerOn = false, compOn = false, answered = false, showTime = false;
     let hasTried = [false, false, false, false];
     let timerInterval, dragSrcEl = null;
+    let standbyAudioObj = null;
 
-    window.onload = () => { renderSetup(); renderAdmin(); showTab('game'); syncUI(); document.getElementById('time-toss').value = timerSettings.toss; document.getElementById('time-comp').value = timerSettings.comp; if(questions.length > 0) navQ(0); };
-    function saveState() { localStorage.setItem('qz_qs', JSON.stringify(questions)); localStorage.setItem('qz_teams', JSON.stringify(teams)); localStorage.setItem('qz_curIdx', curIdx); localStorage.setItem('qz_s1', audioData.correct); localStorage.setItem('qz_s2', audioData.wrong); localStorage.setItem('qz_s3', audioData.buzzer); timerSettings.toss = parseInt(document.getElementById('time-toss').value) || 20; timerSettings.comp = parseInt(document.getElementById('time-comp').value) || 30; localStorage.setItem('qz_timers', JSON.stringify(timerSettings)); }
+    window.onload = () => { 
+        renderSetup(); renderAdmin(); showTab('game'); syncUI(); 
+        document.getElementById('time-toss').value = timerSettings.toss;
+        document.getElementById('time-comp').value = timerSettings.comp;
+        if(standbyImg) document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
+        if(questions.length > 0) navQ(0); 
+        toggleStandby(true); // 初始進入待機
+    };
+
+    function saveState() {
+        localStorage.setItem('qz_qs', JSON.stringify(questions));
+        localStorage.setItem('qz_teams', JSON.stringify(teams));
+        localStorage.setItem('qz_curIdx', curIdx);
+        localStorage.setItem('qz_s1', audioData.correct);
+        localStorage.setItem('qz_s2', audioData.wrong);
+        localStorage.setItem('qz_s3', audioData.buzzer);
+        localStorage.setItem('qz_s4', audioData.standby_music);
+        localStorage.setItem('qz_standby_img', standbyImg);
+        localStorage.setItem('qz_timers', JSON.stringify(timerSettings));
+    }
+
+    function toggleStandby(show) {
+        const overlay = document.getElementById('standby-overlay');
+        if(show) {
+            overlay.style.display = 'flex';
+            // 播放待機音樂
+            if(audioData.standby_music) {
+                if(!standbyAudioObj) {
+                    standbyAudioObj = new Audio(audioData.standby_music);
+                    standbyAudioObj.loop = true;
+                }
+                standbyAudioObj.play();
+            }
+        } else {
+            overlay.style.display = 'none';
+            if(standbyAudioObj) standbyAudioObj.pause();
+        }
+    }
+
+    function loadStandbyImg(e) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            standbyImg = ev.target.result;
+            document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
+            saveState();
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
     function showTab(t) { document.querySelectorAll('.content-section, .nav-btn').forEach(e => e.classList.remove('active')); document.getElementById(t).classList.add('active'); document.querySelector(`.tab-${t}`).classList.add('active'); if(t === 'game') renderGame(); }
     function setQCategory(cat) { selectedCat = cat; document.getElementById('type-comp').classList.toggle('active', cat === 'compulsory'); document.getElementById('type-toss').classList.toggle('active', cat === 'tossup'); }
-    function addQ() { const type = "Judgement", text = document.getElementById('q-input-text').value.trim(); if (!text) return alert("請輸入內容"); questions.push({ type, cat: selectedCat, ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text, opts: [] }); saveState(); renderAdmin(); document.getElementById('q-input-text').value = ""; alert("題目儲存成功！"); }
-    function renderAdmin() { const list = document.getElementById('q-list'); list.innerHTML = questions.map((q, i) => `<div class="q-list-item" draggable="true" ondragstart="dragStart(event, ${i})" ondragover="dragOver(event)" ondrop="dragDrop(event, ${i})" ondragleave="dragLeave(event)" ondragend="dragEnd(event)"><div class="q-content"><div><span class="cat-tag ${q.cat === 'compulsory' ? 'cat-comp' : 'cat-toss'}">${q.cat === 'compulsory' ? '必答' : '搶答'}</span><b>第 ${i+1} 題</b> <small style="color:#7f8c8d; margin-left:5px;">[獎:${q.ptsWin} / 罰:${q.ptsLose}]</small></div><div style="margin:8px 0; font-size:16px;">${q.text}</div></div><button class="del-btn" onclick="delQ(${i})">刪除</button></div>`).join(''); }
+    function addQ() { const text = document.getElementById('q-input-text').value.trim(); if (!text) return alert("請輸入內容"); questions.push({ type: "Judgement", cat: selectedCat, ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text, opts: [] }); saveState(); renderAdmin(); document.getElementById('q-input-text').value = ""; alert("題目儲存成功！"); }
+    function renderAdmin() { const list = document.getElementById('q-list'); list.innerHTML = questions.map((q, i) => `<div class="q-list-item" draggable="true" ondragstart="dragStart(event, ${i})" ondragover="dragOver(event)" ondrop="dragDrop(event, ${i})" ondragend="dragEnd(event)"><div class="q-content"><div><span class="cat-tag ${q.cat === 'compulsory' ? 'cat-comp' : 'cat-toss'}">${q.cat === 'compulsory' ? '必答' : '搶答'}</span><b>第 ${i+1} 題</b> <small>[獎:${q.ptsWin}/罰:${q.ptsLose}]</small></div><div style="margin:8px 0;">${q.text}</div></div><button class="del-btn" onclick="delQ(${i})">刪除</button></div>`).join(''); }
     function dragStart(e, i) { dragSrcEl = i; e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
     function dragOver(e) { e.preventDefault(); const el = e.currentTarget, rect = el.getBoundingClientRect(), mid = (rect.bottom - rect.top) / 2, y = e.clientY - rect.top; document.querySelectorAll('.q-list-item').forEach(i => i.classList.remove('drag-top', 'drag-bottom')); if (y < mid) el.classList.add('drag-top'); else el.classList.add('drag-bottom'); e.dataTransfer.dropEffect = 'move'; return false; }
     function dragDrop(e, targetIdx) { e.stopPropagation(); const el = e.currentTarget, isTop = el.classList.contains('drag-top'); document.querySelectorAll('.q-list-item').forEach(i => i.classList.remove('drag-top', 'drag-bottom')); if (dragSrcEl !== targetIdx) { const item = questions.splice(dragSrcEl, 1)[0]; let insertIndex = targetIdx; if (dragSrcEl < targetIdx) insertIndex--; if (!isTop) insertIndex++; questions.splice(insertIndex, 0, item); saveState(); renderAdmin(); } return false; }
@@ -275,8 +304,7 @@
         } else {
             teams[tempWinner].score = (teams[tempWinner].score || 0) - q.ptsLose;
             playSfx('wrong');
-            if(!compOn) { winnerIdx = null; } 
-            else { answered = true; document.getElementById('judge-ui').classList.add('locked'); }
+            if(!compOn) winnerIdx = null; else { answered = true; document.getElementById('judge-ui').classList.add('locked'); }
             stopTimer();
         }
         renderGame(); saveState();
@@ -293,24 +321,17 @@
     function closeOverlay() { document.getElementById('buzzer-overlay').style.display = 'none'; renderGame(); startTimer(timerSettings.toss); }
     function startTimer(seconds) { stopTimer(); let timeLeft = seconds; const display = document.getElementById('timer-display'); display.innerText = timeLeft; display.style.display = 'block'; timerInterval = setInterval(() => { timeLeft--; display.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); display.innerText = "時間到!"; } }, 1000); }
     function stopTimer() { clearInterval(timerInterval); document.getElementById('timer-display').style.display = 'none'; }
-    function loadAudio(e, type) { const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; saveState(); }; reader.readAsDataURL(e.target.files[0]); }
+    function loadAudio(e, type) { const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) { standbyAudioObj.src = ev.target.result; } saveState(); }; reader.readAsDataURL(e.target.files[0]); }
     function playSfx(type) { if(audioData[type]) new Audio(audioData[type]).play(); }
 
-    // 修正點 1: 空白鍵自動跳下一題
     document.addEventListener('keydown', (e) => {
         if (!document.getElementById('game').classList.contains('active')) return;
-        
         if(e.code === 'Space') { 
-            // 如果搶答成功視窗開著，先關閉它以答題
-            if(document.getElementById('buzzer-overlay').style.display === 'flex') {
-                closeOverlay();
-            } else {
-                // 默認為跳下一題
-                navQ(1);
-            }
+            if(document.getElementById('standby-overlay').style.display !== 'none') toggleStandby(false);
+            else if(document.getElementById('buzzer-overlay').style.display === 'flex') closeOverlay(); 
+            else navQ(1); 
             return; 
         }
-
         const tid = {'1':0, '2':1, '3':2, '4':3}[e.key]; if(tid === undefined) return;
         if (compOn || showTime) return; 
         if(buzzerOn && winnerIdx === null && !hasTried[tid]) {
@@ -325,7 +346,7 @@
     });
 
     function renderSetup() { const ui = document.getElementById('team-setup-ui'); ui.innerHTML = teams.map((t, i) => `<div class="admin-box" style="margin:0; padding:15px;"><b>隊伍 ${i+1} 名稱</b><input type="text" onchange="teams[${i}].name=this.value; saveState()" value="${t.name || ''}"><div style="display:flex; align-items:center; gap:5px;"><input type="file" onchange="upImg(event, ${i})" style="flex:1"><button class="remove-img-btn" onclick="removeImg(${i})">移除圖片</button></div><div style="height:35px; background:url('${t.bg}') center/cover; margin-top:8px; border-radius:6px; border:1px solid #ddd"></div></div>`).join(''); }
-    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V4_backup.json'; a.click(); }
+    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V5_backup.json'; a.click(); }
     function uploadQs(e) { const r = new FileReader(); r.onload = (ev) => { questions = JSON.parse(ev.target.result); curIdx = 0; saveState(); location.reload(); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
