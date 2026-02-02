@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>常識問答比賽系統 -對錯- V5</title>
+    <title>常識問答比賽系統 -對錯- V6</title>
     <style>
         :root {
             --setup-color: #d35400; --admin-color: #2980b9; --game-color: #27ae60;
@@ -37,7 +37,6 @@
         .display-area { background: white; width: 100%; flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; border-top: 1px solid #ddd; position: relative; padding-bottom: 80px; }
         .q-badge { position: absolute; bottom: 20px; right: 20px; background: #57606f; color: white; padding: 8px 25px; border-radius: 30px; font-size: 16px; font-weight: bold; z-index: 5; }
         
-        /* 待機畫面樣式 (新增) */
         #standby-overlay {
             position: absolute; inset: 0; z-index: 100; 
             background-color: #1e272e; background-size: cover; background-position: center;
@@ -100,7 +99,7 @@
         </div>
         <div class="admin-box">
             <h3>系統音效與待機設定</h3>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:30px;">
                 <div><label>🟢 正確音效</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'correct')"></div>
                 <div><label>🔴 錯誤音效</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'wrong')"></div>
                 <div><label>🔔 搶答成功音效</label><input type="file" accept="audio/*" onchange="loadAudio(event, 'buzzer')"></div>
@@ -158,7 +157,7 @@
 
 <div class="controls">
     <div class="controls-left">
-        <span class="version-label">-對錯- V5</span>
+        <span class="version-label">-對錯- V6</span>
         <div class="tab-group">
             <button class="nav-btn tab-setup" onclick="showTab('setup')">設定</button>
             <button class="nav-btn tab-admin" onclick="showTab('admin')">管理</button>
@@ -167,7 +166,6 @@
     </div>
     <div class="controls-right">
         <button id="btn-standby-toggle" class="ctrl-btn" style="background:#8e44ad; margin-right:10px;" onclick="toggleStandby(true)">待機畫面</button>
-        
         <button class="ctrl-btn" onclick="navQ(-1)">上題</button>
         <button id="btn-next" class="ctrl-btn" onclick="navQ(1)" style="background:var(--admin-color)">下題</button>
         <button id="btn-ans" class="ctrl-btn" style="background:#34495e" onclick="showAnswer()">參考答案</button>
@@ -206,7 +204,7 @@
         document.getElementById('time-comp').value = timerSettings.comp;
         if(standbyImg) document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
         if(questions.length > 0) navQ(0); 
-        toggleStandby(true); // 初始進入待機
+        toggleStandby(true); 
     };
 
     function saveState() {
@@ -225,12 +223,9 @@
         const overlay = document.getElementById('standby-overlay');
         if(show) {
             overlay.style.display = 'flex';
-            // 播放待機音樂
             if(audioData.standby_music) {
-                if(!standbyAudioObj) {
-                    standbyAudioObj = new Audio(audioData.standby_music);
-                    standbyAudioObj.loop = true;
-                }
+                if(!standbyAudioObj) standbyAudioObj = new Audio(audioData.standby_music);
+                standbyAudioObj.loop = true; // 明確設定音樂循環
                 standbyAudioObj.play();
             }
         } else {
@@ -324,14 +319,24 @@
     function loadAudio(e, type) { const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) { standbyAudioObj.src = ev.target.result; } saveState(); }; reader.readAsDataURL(e.target.files[0]); }
     function playSfx(type) { if(audioData[type]) new Audio(audioData[type]).play(); }
 
+    // 修正點 1: 防止空白鍵衝突
     document.addEventListener('keydown', (e) => {
         if (!document.getElementById('game').classList.contains('active')) return;
+        
         if(e.code === 'Space') { 
-            if(document.getElementById('standby-overlay').style.display !== 'none') toggleStandby(false);
-            else if(document.getElementById('buzzer-overlay').style.display === 'flex') closeOverlay(); 
-            else navQ(1); 
+            e.preventDefault(); // 防止空白鍵觸發有焦點的按鈕 (避免報錯)
+            document.activeElement.blur(); // 強制取消任何按鈕的焦點
+            
+            if(document.getElementById('standby-overlay').style.display !== 'none') {
+                toggleStandby(false);
+            } else if(document.getElementById('buzzer-overlay').style.display === 'flex') {
+                closeOverlay();
+            } else {
+                navQ(1); 
+            }
             return; 
         }
+
         const tid = {'1':0, '2':1, '3':2, '4':3}[e.key]; if(tid === undefined) return;
         if (compOn || showTime) return; 
         if(buzzerOn && winnerIdx === null && !hasTried[tid]) {
@@ -346,7 +351,7 @@
     });
 
     function renderSetup() { const ui = document.getElementById('team-setup-ui'); ui.innerHTML = teams.map((t, i) => `<div class="admin-box" style="margin:0; padding:15px;"><b>隊伍 ${i+1} 名稱</b><input type="text" onchange="teams[${i}].name=this.value; saveState()" value="${t.name || ''}"><div style="display:flex; align-items:center; gap:5px;"><input type="file" onchange="upImg(event, ${i})" style="flex:1"><button class="remove-img-btn" onclick="removeImg(${i})">移除圖片</button></div><div style="height:35px; background:url('${t.bg}') center/cover; margin-top:8px; border-radius:6px; border:1px solid #ddd"></div></div>`).join(''); }
-    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V5_backup.json'; a.click(); }
+    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V6_backup.json'; a.click(); }
     function uploadQs(e) { const r = new FileReader(); r.onload = (ev) => { questions = JSON.parse(ev.target.result); curIdx = 0; saveState(); location.reload(); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
