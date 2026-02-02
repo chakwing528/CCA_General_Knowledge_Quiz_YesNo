@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>常識問答比賽系統 -對錯- V6</title>
+    <title>常識問答比賽系統 -對錯- V7</title>
     <style>
         :root {
             --setup-color: #d35400; --admin-color: #2980b9; --game-color: #27ae60;
@@ -157,7 +157,7 @@
 
 <div class="controls">
     <div class="controls-left">
-        <span class="version-label">-對錯- V6</span>
+        <span class="version-label">-對錯- V7</span>
         <div class="tab-group">
             <button class="nav-btn tab-setup" onclick="showTab('setup')">設定</button>
             <button class="nav-btn tab-admin" onclick="showTab('admin')">管理</button>
@@ -186,9 +186,15 @@
 </div>
 
 <script>
+    // 從 localStorage 恢復所有數據 (修正點 2)
     let questions = JSON.parse(localStorage.getItem('qz_qs')) || [];
     let teams = JSON.parse(localStorage.getItem('qz_teams')) || [{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0}];
-    let audioData = { correct: localStorage.getItem('qz_s1') || '', wrong: localStorage.getItem('qz_s2') || '', buzzer: localStorage.getItem('qz_s3') || '', standby_music: localStorage.getItem('qz_s4') || '' };
+    let audioData = { 
+        correct: localStorage.getItem('qz_s1') || '', 
+        wrong: localStorage.getItem('qz_s2') || '', 
+        buzzer: localStorage.getItem('qz_s3') || '', 
+        standby_music: localStorage.getItem('qz_s4') || '' 
+    };
     let standbyImg = localStorage.getItem('qz_standby_img') || '';
     let timerSettings = JSON.parse(localStorage.getItem('qz_timers')) || { toss: 20, comp: 30 };
     
@@ -225,7 +231,7 @@
             overlay.style.display = 'flex';
             if(audioData.standby_music) {
                 if(!standbyAudioObj) standbyAudioObj = new Audio(audioData.standby_music);
-                standbyAudioObj.loop = true; // 明確設定音樂循環
+                standbyAudioObj.loop = true; // 音樂循環播放
                 standbyAudioObj.play();
             }
         } else {
@@ -319,23 +325,22 @@
     function loadAudio(e, type) { const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) { standbyAudioObj.src = ev.target.result; } saveState(); }; reader.readAsDataURL(e.target.files[0]); }
     function playSfx(type) { if(audioData[type]) new Audio(audioData[type]).play(); }
 
-    // 修正點 1: 防止空白鍵衝突
     document.addEventListener('keydown', (e) => {
         if (!document.getElementById('game').classList.contains('active')) return;
         
+        const isStandby = document.getElementById('standby-overlay').style.display !== 'none';
+
         if(e.code === 'Space') { 
-            e.preventDefault(); // 防止空白鍵觸發有焦點的按鈕 (避免報錯)
-            document.activeElement.blur(); // 強制取消任何按鈕的焦點
-            
-            if(document.getElementById('standby-overlay').style.display !== 'none') {
-                toggleStandby(false);
-            } else if(document.getElementById('buzzer-overlay').style.display === 'flex') {
-                closeOverlay();
-            } else {
-                navQ(1); 
-            }
+            e.preventDefault();
+            document.activeElement.blur();
+            if(isStandby) toggleStandby(false);
+            else if(document.getElementById('buzzer-overlay').style.display === 'flex') closeOverlay();
+            else navQ(1); 
             return; 
         }
+
+        // 修正點 1: 在待機畫面下，鎖定 1, 2, 3, 4 鍵
+        if(isStandby) return;
 
         const tid = {'1':0, '2':1, '3':2, '4':3}[e.key]; if(tid === undefined) return;
         if (compOn || showTime) return; 
@@ -351,7 +356,7 @@
     });
 
     function renderSetup() { const ui = document.getElementById('team-setup-ui'); ui.innerHTML = teams.map((t, i) => `<div class="admin-box" style="margin:0; padding:15px;"><b>隊伍 ${i+1} 名稱</b><input type="text" onchange="teams[${i}].name=this.value; saveState()" value="${t.name || ''}"><div style="display:flex; align-items:center; gap:5px;"><input type="file" onchange="upImg(event, ${i})" style="flex:1"><button class="remove-img-btn" onclick="removeImg(${i})">移除圖片</button></div><div style="height:35px; background:url('${t.bg}') center/cover; margin-top:8px; border-radius:6px; border:1px solid #ddd"></div></div>`).join(''); }
-    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V6_backup.json'; a.click(); }
+    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V7_backup.json'; a.click(); }
     function uploadQs(e) { const r = new FileReader(); r.onload = (ev) => { questions = JSON.parse(ev.target.result); curIdx = 0; saveState(); location.reload(); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
