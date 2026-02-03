@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>常識問答比賽系統 -對錯- V10</title>
+    <title>常識問答比賽系統 -對錯- V11</title>
     <style>
         :root {
             --setup-color: #d35400; --admin-color: #2980b9; --game-color: #27ae60;
@@ -80,7 +80,6 @@
         .win-sub { font-size: 36px; font-weight: bold; position: relative; z-index: 2; color: #fff; margin-top: -10px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 
         .q-list-item { background: #fdfdfd; padding: 18px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
-        .q-list-item:hover { box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .del-btn { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
         .remove-img-btn { background: #7f8c8d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 5px; }
 
@@ -159,7 +158,7 @@
 
 <div class="controls">
     <div class="controls-left">
-        <span class="version-label">-對錯- V10</span>
+        <span class="version-label">-對錯- V11</span>
         <div class="tab-group">
             <button class="nav-btn tab-setup" onclick="showTab('setup')">設定</button>
             <button class="nav-btn tab-admin" onclick="showTab('admin')">管理</button>
@@ -188,7 +187,6 @@
 </div>
 
 <script>
-    // 初始化時明確從 localStorage 讀取數據
     let questions = JSON.parse(localStorage.getItem('qz_qs')) || [];
     let teams = JSON.parse(localStorage.getItem('qz_teams')) || [{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0}];
     let audioData = { 
@@ -211,12 +209,7 @@
         document.getElementById('time-toss').value = timerSettings.toss;
         document.getElementById('time-comp').value = timerSettings.comp;
         document.getElementById('standby-text-input').value = standbyText;
-        
-        // 修正：強制加載待機背景圖片 (DataURL)
-        if(standbyImg && standbyImg.trim() !== "") {
-            document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
-        }
-
+        if(standbyImg && standbyImg.trim() !== "") document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
         if(questions.length > 0) navQ(0); 
         toggleStandby(true); 
     };
@@ -234,64 +227,33 @@
         localStorage.setItem('qz_timers', JSON.stringify(timerSettings));
     }
 
+    // 修正點 1: 確保進入計時
     function toggleStandby(show) {
         const overlay = document.getElementById('standby-overlay');
-        const textH1 = document.getElementById('standby-display-text');
         if(show) {
             overlay.style.display = 'flex';
-            textH1.innerText = standbyText;
-            if(audioData.standby_music && audioData.standby_music !== "") {
-                if(!standbyAudioObj) {
-                    standbyAudioObj = new Audio(audioData.standby_music);
-                    standbyAudioObj.loop = true;
-                } else {
-                    standbyAudioObj.src = audioData.standby_music;
-                }
+            if(audioData.standby_music) {
+                if(!standbyAudioObj) { standbyAudioObj = new Audio(audioData.standby_music); standbyAudioObj.loop = true; }
+                else standbyAudioObj.src = audioData.standby_music;
                 standbyAudioObj.play();
             }
         } else {
             overlay.style.display = 'none';
             if(standbyAudioObj) standbyAudioObj.pause();
+            // 修正：進入比賽介面，若必答則開計時
             if(compOn && winnerIdx !== null && !answered) startTimer(timerSettings.comp);
         }
     }
 
     function loadStandbyImg(e) {
-        const file = e.target.files[0];
-        if(!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => { 
-            standbyImg = ev.target.result; 
-            document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`; 
-            saveState(); 
-        };
-        reader.readAsDataURL(file);
+        reader.onload = (ev) => { standbyImg = ev.target.result; document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`; saveState(); };
+        reader.readAsDataURL(e.target.files[0]);
     }
 
     function showTab(t) { document.querySelectorAll('.content-section, .nav-btn').forEach(e => e.classList.remove('active')); document.getElementById(t).classList.add('active'); document.querySelector(`.tab-${t}`).classList.add('active'); if(t === 'game') renderGame(); }
-    
-    function addQ() { 
-        const text = document.getElementById('q-input-text').value.trim(); 
-        if (!text) return alert("請輸入內容"); 
-        questions.push({ type: "Judgement", cat: "compulsory", ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text, opts: [] }); 
-        saveState(); renderAdmin(); document.getElementById('q-input-text').value = ""; alert("題目儲存成功！"); 
-    }
-
-    function renderAdmin() { 
-        const list = document.getElementById('q-list'); 
-        list.innerHTML = questions.map((q, i) => `
-            <div class="q-list-item">
-                <div class="q-content">
-                    <div><b>第 ${i+1} 題</b>: ${q.text}</div>
-                    <div class="q-points-edit">
-                        獎分: <input type="number" value="${q.ptsWin}" onchange="questions[${i}].ptsWin=parseInt(this.value); saveState()">
-                        罰分: <input type="number" value="${q.ptsLose}" onchange="questions[${i}].ptsLose=parseInt(this.value); saveState()">
-                    </div>
-                </div>
-                <button class="del-btn" onclick="delQ(${i})">刪除</button>
-            </div>`).join(''); 
-    }
-
+    function addQ() { const text = document.getElementById('q-input-text').value.trim(); if (!text) return alert("請輸入內容"); questions.push({ type: "Judgement", cat: "compulsory", ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text, opts: [] }); saveState(); renderAdmin(); document.getElementById('q-input-text').value = ""; alert("題目儲存成功！"); }
+    function renderAdmin() { const list = document.getElementById('q-list'); list.innerHTML = questions.map((q, i) => `<div class="q-list-item"><div class="q-content"><div><b>第 ${i+1} 題</b>: ${q.text}</div><div class="q-points-edit">獎分: <input type="number" value="${q.ptsWin}" onchange="questions[${i}].ptsWin=parseInt(this.value); saveState()"> 罰分: <input type="number" value="${q.ptsLose}" onchange="questions[${i}].ptsLose=parseInt(this.value); saveState()"></div></div><button class="del-btn" onclick="delQ(${i})">刪除</button></div>`).join(''); }
     function delQ(i) { if(confirm("確定刪除？")) { questions.splice(i,1); saveState(); renderAdmin(); } }
     
     function renderGame() {
@@ -307,6 +269,7 @@
         const sel = document.getElementById('sel-team'); teams.forEach((t, i) => { if(sel.options[i+1]) sel.options[i+1].text = (t.name ? t.name : `T${i+1}`); });
     }
 
+    // 修正點 1: 換題必答計時
     function navQ(dir) { 
         if(questions.length === 0) return; 
         stopTimer(); 
@@ -348,15 +311,30 @@
     function manualAdj(plus) { if(winnerIdx === null) return alert("請先選定隊伍"); const val = parseInt(document.getElementById('pts-box').value); teams[winnerIdx].score = (teams[winnerIdx].score || 0) + (plus ? val : -val); playSfx(plus ? 'correct' : 'wrong'); renderGame(); saveState(); }
     function upImg(e, i) { const reader = new FileReader(); reader.onload = (ev) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX_W = 800; let w = img.width, h = img.height; if (w > MAX_W) { h *= MAX_W/w; w = MAX_W; } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); teams[i].bg = canvas.toDataURL('image/jpeg', 0.8); saveState(); renderSetup(); }; img.src = ev.target.result; }; reader.readAsDataURL(e.target.files[0]); }
     function removeImg(i) { teams[i].bg = ""; saveState(); renderSetup(); }
-    function toggleBuzzer() { compOn = false; buzzerOn = !buzzerOn; if(buzzerOn) winnerIdx = null; syncUI(); renderGame(); }
-    function toggleComp() { buzzerOn = false; compOn = !compOn; if(!compOn) { winnerIdx = null; stopTimer(); } else if(winnerIdx !== null) startTimer(timerSettings.comp); syncUI(); renderGame(); }
+    function toggleBuzzer() { compOn = false; buzzerOn = !buzzerOn; if(buzzerOn) winnerIdx = null; stopTimer(); syncUI(); renderGame(); }
+    
+    // 修正點 1: 切換必答開啟計時
+    function toggleComp() { 
+        buzzerOn = false; compOn = !compOn; 
+        if(!compOn) { stopTimer(); }
+        else if(winnerIdx !== null && !answered) startTimer(timerSettings.comp);
+        syncUI(); renderGame(); 
+    }
+
     function syncUI() { document.getElementById('btn-buzzer').style.background = buzzerOn ? "var(--success)" : "var(--error)"; document.getElementById('btn-comp').style.background = compOn ? "var(--success)" : "var(--error)"; }
-    function manuallySelect() { winnerIdx = document.getElementById('sel-team').value === "" ? null : parseInt(document.getElementById('sel-team').value); renderGame(); if(compOn && winnerIdx !== null && document.getElementById('standby-overlay').style.display === 'none') startTimer(timerSettings.comp); }
+    
+    // 修正點 1: 指定隊伍必答計時
+    function manuallySelect() { 
+        winnerIdx = document.getElementById('sel-team').value === "" ? null : parseInt(document.getElementById('sel-team').value); 
+        renderGame(); 
+        if(compOn && winnerIdx !== null && !answered && document.getElementById('standby-overlay').style.display === 'none') startTimer(timerSettings.comp); 
+    }
+
     function resetRound() { stopTimer(); if(!compOn) winnerIdx = null; hasTried = [false, false, false, false]; answered = false; document.getElementById('judge-ui').classList.remove('locked'); document.getElementById('buzzer-overlay').style.display = 'none'; renderGame(); }
     function closeOverlay() { document.getElementById('buzzer-overlay').style.display = 'none'; renderGame(); startTimer(timerSettings.toss); }
     function startTimer(seconds) { stopTimer(); let timeLeft = seconds; const display = document.getElementById('timer-display'); display.innerText = timeLeft; display.style.display = 'block'; timerInterval = setInterval(() => { timeLeft--; display.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); display.innerText = "時間到!"; } }, 1000); }
     function stopTimer() { clearInterval(timerInterval); document.getElementById('timer-display').style.display = 'none'; }
-    function loadAudio(e, type) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) { standbyAudioObj.src = ev.target.result; } saveState(); }; reader.readAsDataURL(file); }
+    function loadAudio(e, type) { const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; saveState(); }; reader.readAsDataURL(e.target.files[0]); }
     function playSfx(type) { if(audioData[type] && audioData[type] !== "") new Audio(audioData[type]).play(); }
 
     document.addEventListener('keydown', (e) => {
@@ -375,16 +353,14 @@
         if(buzzerOn && winnerIdx === null && !hasTried[tid]) {
             winnerIdx = tid;
             const overlay = document.getElementById('buzzer-overlay'), teamName = teams[winnerIdx].name, winText = document.getElementById('win-name'), winSub = document.getElementById('win-sub');
-            if (teamName && teamName.trim() !== "") { winText.innerText = teamName; winSub.style.display = 'block'; winSub.innerText = "搶答成功！"; } 
-            else { winText.innerText = "搶答成功！"; winSub.style.display = 'none'; }
-            if(teams[winnerIdx].bg) { overlay.style.backgroundImage = `url('${teams[winnerIdx].bg}')`; overlay.querySelector('.overlay-mask').style.background = 'rgba(0,0,0,0.3)'; }
-            else { overlay.style.backgroundImage = 'none'; overlay.style.backgroundColor = '#1e272e'; overlay.querySelector('.overlay-mask').style.background = 'rgba(0,0,0,0.6)'; }
+            if (teamName && teamName.trim() !== "") { winText.innerText = teamName; winSub.innerText = "搶答成功！"; } else { winText.innerText = "搶答成功！"; }
+            if(teams[winnerIdx].bg) overlay.style.backgroundImage = `url('${teams[winnerIdx].bg}')`;
             overlay.style.display = 'flex'; playSfx('buzzer'); renderGame();
         }
     });
 
     function renderSetup() { const ui = document.getElementById('team-setup-ui'); ui.innerHTML = teams.map((t, i) => `<div class="admin-box" style="margin:0; padding:15px;"><b>隊伍 ${i+1} 名稱</b><input type="text" onchange="teams[${i}].name=this.value; saveState()" value="${t.name || ''}"><div style="display:flex; align-items:center; gap:5px;"><input type="file" onchange="upImg(event, ${i})" style="flex:1"><button class="remove-img-btn" onclick="removeImg(${i})">移除圖片</button></div><div style="height:35px; background:url('${t.bg}') center/cover; margin-top:8px; border-radius:6px; border:1px solid #ddd"></div></div>`).join(''); }
-    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V10_backup.json'; a.click(); }
+    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions, null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V11_backup.json'; a.click(); }
     function uploadQs(e) { const r = new FileReader(); r.onload = (ev) => { questions = JSON.parse(ev.target.result); curIdx = 0; saveState(); location.reload(); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
