@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>常識問答比賽系統 -對錯- V13</title>
+    <title>常識問答比賽系統 -對錯- V14</title>
     <style>
         :root {
             --setup-color: #d35400; --admin-color: #2980b9; --game-color: #27ae60;
@@ -18,6 +18,7 @@
         .admin-box { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 25px; border: 1px solid #eee; }
         input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #dfe6e9; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
 
+        /* 恢復 V11 樣式：計分板 */
         .scoreboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; width: 100%; flex-shrink: 0; transition: 0.5s; z-index: 10; }
         .scoreboard.has-winner .team-card:not(.winner-active), .team-card.already-tried:not(.winner-active) { filter: brightness(0.2) grayscale(0.8) !important; opacity: 0.4 !important; box-shadow: none !important; }
 
@@ -58,9 +59,7 @@
 
         .judge-btn { flex: 1; height: 140px; font-size: 50px; border-radius: 20px; cursor: pointer; font-weight: 900; color: white; border: none; transition: 0.3s; box-shadow: 0 8px 25px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; flex-direction: column; }
         .btn-correct { background: var(--success); }
-        .btn-correct:hover { background: #219150; }
         .btn-wrong { background: var(--error); }
-        .btn-wrong:hover { background: #a93226; }
         .judge-btn small { font-size: 18px; opacity: 0.8; margin-top: 5px; }
 
         .controls { background: #1e272e; padding: 0 15px; display: flex; justify-content: space-between; align-items: center; z-index: 200; height: 75px; min-height: 75px; max-height: 75px; box-sizing: border-box; border-top: 1px solid #333; width: 100%; flex-shrink: 0; }
@@ -72,17 +71,15 @@
         .nav-btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; color: white; font-size: 14px; font-weight: bold; background: transparent; white-space: nowrap; transition: 0.2s; }
         .nav-btn.active { background: #57606f; }
         .ctrl-btn { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; color: white; background: #485460; font-weight: bold; font-size: 13px; height: 38px; white-space: nowrap; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        .ctrl-btn:hover { background: #5f6e7c; }
 
         #buzzer-overlay { position: fixed; inset: 0; z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; background-size: cover; background-position: center; background-repeat: no-repeat; }
         .overlay-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 1; }
         .win-text { font-size: 140px; font-weight: 900; color: var(--gold); position: relative; z-index: 2; text-shadow: 0 5px 20px rgba(0,0,0,0.8); text-transform: uppercase; }
-        .win-sub { font-size: 36px; font-weight: bold; position: relative; z-index: 2; color: #fff; margin-top: -10px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 
-        .q-list-item { background: #fdfdfd; padding: 18px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .q-list-item { background: #fdfdfd; padding: 18px; margin-bottom: 12px; border-radius: 12px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .q-points-edit { display: flex; gap: 10px; margin-top: 10px; align-items: center; font-size: 14px; }
         .q-points-edit input { width: 70px !important; padding: 5px !important; margin: 0 !important; height: 30px !important; font-size: 14px !important; }
-        .del-btn { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .del-btn { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; }
         .remove-img-btn { background: #7f8c8d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 5px; }
     </style>
 </head>
@@ -157,7 +154,7 @@
 
 <div class="controls">
     <div class="controls-left">
-        <span class="version-label">-對錯- V13</span>
+        <span class="version-label">-對錯- V14</span>
         <div class="tab-group">
             <button class="nav-btn tab-setup" onclick="showTab('setup')">設定</button>
             <button class="nav-btn tab-admin" onclick="showTab('admin')">管理</button>
@@ -182,19 +179,13 @@
 <div id="buzzer-overlay" onclick="closeOverlay()">
     <div class="overlay-mask"></div>
     <div id="win-name" class="win-text"></div>
-    <div id="win-sub" class="win-sub">搶答成功！</div>
 </div>
 
 <script>
-    // --- 數據加載與持久化 ---
+    // --- 數據持久化 ---
     let questions = JSON.parse(localStorage.getItem('qz_qs')) || [];
     let teams = JSON.parse(localStorage.getItem('qz_teams')) || [{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0}];
-    let audioData = { 
-        correct: localStorage.getItem('qz_s1') || '', 
-        wrong: localStorage.getItem('qz_s2') || '', 
-        buzzer: localStorage.getItem('qz_s3') || '', 
-        standby_music: localStorage.getItem('qz_s4') || '' 
-    };
+    let audioData = { correct: localStorage.getItem('qz_s1') || '', wrong: localStorage.getItem('qz_s2') || '', buzzer: localStorage.getItem('qz_s3') || '', standby_music: localStorage.getItem('qz_s4') || '' };
     let standbyImg = localStorage.getItem('qz_standby_img') || '';
     let standbyText = localStorage.getItem('qz_standby_text') || '比賽即將開始';
     let timerSettings = JSON.parse(localStorage.getItem('qz_timers')) || { toss: 20, comp: 30 };
@@ -204,13 +195,16 @@
     let hasTried = [false, false, false, false];
     let timerInterval, standbyAudioObj = null;
 
+    // --- 初始化渲染 ---
     window.onload = () => { 
         renderSetup(); renderAdmin(); showTab('game'); syncUI(); 
         document.getElementById('time-toss').value = timerSettings.toss;
         document.getElementById('time-comp').value = timerSettings.comp;
         document.getElementById('standby-text-input').value = standbyText;
         document.getElementById('standby-display-text').innerText = standbyText;
-        if(standbyImg && standbyImg.trim() !== "") document.getElementById('standby-overlay').style.backgroundImage = `url("${standbyImg}")`;
+        if(standbyImg) document.getElementById('standby-overlay').style.backgroundImage = `url("${standbyImg}")`;
+        
+        renderGame(); // 強制渲染計分板
         if(questions.length > 0) navQ(0); 
         toggleStandby(true); 
     };
@@ -228,23 +222,29 @@
         localStorage.setItem('qz_timers', JSON.stringify(timerSettings));
     }
 
-    // --- 修正點 1: 自動計時啟動器 (支持任何模式) ---
+    // --- 計分板渲染邏輯 ---
+    function renderGame() {
+        const sb = document.getElementById('game-sb');
+        if (winnerIdx !== null) sb.classList.add('has-winner'); else sb.classList.remove('has-winner');
+        sb.innerHTML = teams.map((t, i) => {
+            const isWinner = (winnerIdx === i);
+            const tried = hasTried[i];
+            let cls = isWinner ? "winner-active" : "";
+            if (tried && !isWinner) cls += " already-tried";
+            return `<div class="team-card ${cls}" style="background-image:url('${t.bg}')"><div class="team-overlay"></div><div class="team-content"><div class="team-name-label">${t.name || ""}</div><div class="score-val">${t.score || 0}</div></div></div>`;
+        }).join('');
+        const sel = document.getElementById('sel-team'); teams.forEach((t, i) => { if(sel.options[i+1]) sel.options[i+1].text = (t.name ? t.name : `T${i+1}`); });
+    }
+
+    // --- 自動計時邏輯 ---
     function autoTriggerTimer() {
         const isStandby = document.getElementById('standby-overlay').style.display !== 'none';
-        // 規則：只要有隊伍被選中 (winnerIdx !== null) + 非待機畫面 + 未完成判定 = 啟動計時
         if(winnerIdx !== null && !isStandby && !answered) {
-            // 模式判斷：必答模式用必答時限，其他用搶答時限
             const limit = compOn ? timerSettings.comp : timerSettings.toss;
             startTimer(limit);
         } else if (winnerIdx === null) {
             stopTimer();
         }
-    }
-
-    function updateStandbyText(val) {
-        standbyText = val;
-        document.getElementById('standby-display-text').innerText = val;
-        saveState();
     }
 
     function toggleStandby(show) {
@@ -264,19 +264,6 @@
         }
     }
 
-    function loadStandbyImg(e) {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => { 
-            standbyImg = ev.target.result; 
-            document.getElementById('standby-overlay').style.backgroundImage = `url("${standbyImg}")`; 
-            saveState(); 
-        };
-        reader.readAsDataURL(file);
-    }
-
-    // --- 比賽控制 ---
     function navQ(dir) { 
         if(questions.length === 0) return; 
         stopTimer(); 
@@ -296,20 +283,6 @@
         winnerIdx = document.getElementById('sel-team').value === "" ? null : parseInt(document.getElementById('sel-team').value); 
         renderGame(); 
         autoTriggerTimer(); 
-    }
-
-    function toggleComp() { 
-        buzzerOn = false; compOn = !compOn; 
-        if(!compOn) { stopTimer(); }
-        syncUI(); renderGame(); 
-        autoTriggerTimer(); 
-    }
-
-    function toggleBuzzer() { 
-        compOn = false; buzzerOn = !buzzerOn; 
-        if(buzzerOn) winnerIdx = null; 
-        stopTimer(); syncUI(); renderGame(); 
-        autoTriggerTimer();
     }
 
     function judgeAnswer(isCorrect) {
@@ -333,13 +306,17 @@
         renderGame(); saveState();
     }
 
-    // --- 輔助功能 ---
+    // --- 系統功能 ---
+    function updateStandbyText(val) { standbyText = val; document.getElementById('standby-display-text').innerText = val; saveState(); }
+    function loadStandbyImg(e) { const reader = new FileReader(); reader.onload = (ev) => { standbyImg = ev.target.result; document.getElementById('standby-overlay').style.backgroundImage = `url("${standbyImg}")`; saveState(); }; reader.readAsDataURL(e.target.files[0]); }
     function showTab(t) { document.querySelectorAll('.content-section, .nav-btn').forEach(e => e.classList.remove('active')); document.getElementById(t).classList.add('active'); document.querySelector(`.tab-${t}`).classList.add('active'); if(t === 'game') renderGame(); }
     function syncUI() { document.getElementById('btn-buzzer').style.background = buzzerOn ? "var(--success)" : "var(--error)"; document.getElementById('btn-comp').style.background = compOn ? "var(--success)" : "var(--error)"; }
     function startTimer(seconds) { stopTimer(); let timeLeft = seconds; const display = document.getElementById('timer-display'); display.innerText = timeLeft; display.style.display = 'block'; timerInterval = setInterval(() => { timeLeft--; display.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); display.innerText = "時間到!"; playSfx('wrong'); } }, 1000); }
     function stopTimer() { clearInterval(timerInterval); if(document.getElementById('timer-display')) document.getElementById('timer-display').style.display = 'none'; }
-    function loadAudio(e, type) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) standbyAudioObj.src = ev.target.result; saveState(); }; reader.readAsDataURL(file); }
-    function playSfx(type) { if(audioData[type] && audioData[type] !== "") new Audio(audioData[type]).play(); }
+    function loadAudio(e, type) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; saveState(); }; reader.readAsDataURL(file); }
+    function playSfx(type) { if(audioData[type]) new Audio(audioData[type]).play(); }
+    function toggleBuzzer() { compOn = false; buzzerOn = !buzzerOn; if(buzzerOn) winnerIdx = null; stopTimer(); syncUI(); renderGame(); }
+    function toggleComp() { buzzerOn = false; compOn = !compOn; if(!compOn) { winnerIdx = null; stopTimer(); } syncUI(); renderGame(); autoTriggerTimer(); }
     function renderSetup() { const ui = document.getElementById('team-setup-ui'); ui.innerHTML = teams.map((t, i) => `<div class="admin-box" style="margin:0; padding:15px;"><b>隊伍 ${i+1} 名稱</b><input type="text" oninput="teams[${i}].name=this.value; saveState()" value="${t.name || ''}"><div style="display:flex; align-items:center; gap:5px;"><input type="file" onchange="upImg(event, ${i})" style="flex:1"><button class="remove-img-btn" onclick="removeImg(${i})">移除圖片</button></div><div style="height:35px; background:url('${t.bg}') center/cover; margin-top:8px; border-radius:6px; border:1px solid #ddd"></div></div>`).join(''); }
     function renderAdmin() { const list = document.getElementById('q-list'); list.innerHTML = questions.map((q, i) => `<div class="q-list-item"><div class="q-content"><div><b>第 ${i+1} 題</b>: ${q.text}</div><div class="q-points-edit">獎分: <input type="number" value="${q.ptsWin}" oninput="questions[${i}].ptsWin=parseInt(this.value); saveState()"> 罰分: <input type="number" value="${q.ptsLose}" oninput="questions[${i}].ptsLose=parseInt(this.value); saveState()"></div></div><button class="del-btn" onclick="delQ(${i})">刪除</button></div>`).join(''); }
     function addQ() { const text = document.getElementById('q-input-text').value.trim(); if (!text) return alert("內容不可為空"); questions.push({ cat: "compulsory", ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text }); saveState(); renderAdmin(); document.getElementById('q-input-text').value = ""; }
