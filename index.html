@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>常識問答比賽系統 -對錯- V8</title>
+    <title>常識問答比賽系統 -對錯- V10</title>
     <style>
         :root {
             --setup-color: #d35400; --admin-color: #2980b9; --game-color: #27ae60;
@@ -84,7 +84,6 @@
         .del-btn { background: var(--error); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
         .remove-img-btn { background: #7f8c8d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-left: 5px; }
 
-        /* 分數修改區域樣式 */
         .q-points-edit { display: flex; gap: 10px; margin-top: 10px; align-items: center; font-size: 14px; }
         .q-points-edit input { width: 70px !important; padding: 5px !important; margin: 0 !important; height: 30px !important; font-size: 14px !important; }
     </style>
@@ -146,7 +145,7 @@
     <div class="display-area">
         <div id="standby-overlay">
             <h1 id="standby-display-text">比賽即將開始</h1>
-            <button class="ctrl-btn" style="height:60px; width:200px; font-size:20px; background:var(--game-color); margin-top:20px;" onclick="toggleStandby(false)">進入比賽介面</button>
+            <button class="ctrl-btn" style="height:40px; width:160px; font-size:16px; background:var(--game-color); margin-top:150px; border-radius: 20px;" onclick="toggleStandby(false)">進入比賽介面</button>
         </div>
         <div id="timer-display">20</div>
         <div class="judge-grid" id="judge-ui">
@@ -160,7 +159,7 @@
 
 <div class="controls">
     <div class="controls-left">
-        <span class="version-label">-對錯- V8</span>
+        <span class="version-label">-對錯- V10</span>
         <div class="tab-group">
             <button class="nav-btn tab-setup" onclick="showTab('setup')">設定</button>
             <button class="nav-btn tab-admin" onclick="showTab('admin')">管理</button>
@@ -189,9 +188,15 @@
 </div>
 
 <script>
+    // 初始化時明確從 localStorage 讀取數據
     let questions = JSON.parse(localStorage.getItem('qz_qs')) || [];
     let teams = JSON.parse(localStorage.getItem('qz_teams')) || [{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0},{name:"",bg:"",score:0}];
-    let audioData = { correct: localStorage.getItem('qz_s1') || '', wrong: localStorage.getItem('qz_s2') || '', buzzer: localStorage.getItem('qz_s3') || '', standby_music: localStorage.getItem('qz_s4') || '' };
+    let audioData = { 
+        correct: localStorage.getItem('qz_s1') || '', 
+        wrong: localStorage.getItem('qz_s2') || '', 
+        buzzer: localStorage.getItem('qz_s3') || '', 
+        standby_music: localStorage.getItem('qz_s4') || '' 
+    };
     let standbyImg = localStorage.getItem('qz_standby_img') || '';
     let standbyText = localStorage.getItem('qz_standby_text') || '比賽即將開始';
     let timerSettings = JSON.parse(localStorage.getItem('qz_timers')) || { toss: 20, comp: 30 };
@@ -206,7 +211,12 @@
         document.getElementById('time-toss').value = timerSettings.toss;
         document.getElementById('time-comp').value = timerSettings.comp;
         document.getElementById('standby-text-input').value = standbyText;
-        if(standbyImg) document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
+        
+        // 修正：強制加載待機背景圖片 (DataURL)
+        if(standbyImg && standbyImg.trim() !== "") {
+            document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`;
+        }
+
         if(questions.length > 0) navQ(0); 
         toggleStandby(true); 
     };
@@ -230,34 +240,43 @@
         if(show) {
             overlay.style.display = 'flex';
             textH1.innerText = standbyText;
-            if(audioData.standby_music) {
-                if(!standbyAudioObj) standbyAudioObj = new Audio(audioData.standby_music);
-                standbyAudioObj.loop = true;
+            if(audioData.standby_music && audioData.standby_music !== "") {
+                if(!standbyAudioObj) {
+                    standbyAudioObj = new Audio(audioData.standby_music);
+                    standbyAudioObj.loop = true;
+                } else {
+                    standbyAudioObj.src = audioData.standby_music;
+                }
                 standbyAudioObj.play();
             }
         } else {
             overlay.style.display = 'none';
             if(standbyAudioObj) standbyAudioObj.pause();
+            if(compOn && winnerIdx !== null && !answered) startTimer(timerSettings.comp);
         }
     }
 
     function loadStandbyImg(e) {
+        const file = e.target.files[0];
+        if(!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => { standbyImg = ev.target.result; document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`; saveState(); };
-        reader.readAsDataURL(e.target.files[0]);
+        reader.onload = (ev) => { 
+            standbyImg = ev.target.result; 
+            document.getElementById('standby-overlay').style.backgroundImage = `url(${standbyImg})`; 
+            saveState(); 
+        };
+        reader.readAsDataURL(file);
     }
 
     function showTab(t) { document.querySelectorAll('.content-section, .nav-btn').forEach(e => e.classList.remove('active')); document.getElementById(t).classList.add('active'); document.querySelector(`.tab-${t}`).classList.add('active'); if(t === 'game') renderGame(); }
     
-    // 修正點 1: 新增題目時紀錄分數
     function addQ() { 
         const text = document.getElementById('q-input-text').value.trim(); 
         if (!text) return alert("請輸入內容"); 
-        questions.push({ type: "Judgement", cat: selectedCat || 'compulsory', ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text, opts: [] }); 
+        questions.push({ type: "Judgement", cat: "compulsory", ptsWin: parseInt(document.getElementById('pts-win').value), ptsLose: parseInt(document.getElementById('pts-lose').value), text, ans: "Judge", fullAns: text, opts: [] }); 
         saveState(); renderAdmin(); document.getElementById('q-input-text').value = ""; alert("題目儲存成功！"); 
     }
 
-    // 修正點 1: 渲染管理列表，允許修改每題分數
     function renderAdmin() { 
         const list = document.getElementById('q-list'); 
         list.innerHTML = questions.map((q, i) => `
@@ -295,12 +314,12 @@
         showTime = false; answered = false; hasTried = [false, false, false, false]; 
         document.getElementById('judge-ui').classList.remove('locked');
         const q = questions[curIdx]; 
-        document.getElementById('g-badge').innerText = `第 ${curIdx + 1} 題 | ${q.cat === 'compulsory' ? '必答題' : '搶答題'} | 獎+${q.ptsWin} / 罰-${q.ptsLose}`; 
+        document.getElementById('g-badge').innerText = `第 ${curIdx + 1} 題 | 獎+${q.ptsWin} / 罰-${q.ptsLose}`; 
         document.getElementById('g-res').style.display = 'none'; 
         document.getElementById('pts-box').value = q.ptsWin; 
         if(!compOn) winnerIdx = null; 
         renderGame(); saveState(); 
-        if(compOn && winnerIdx !== null) startTimer(timerSettings.comp);
+        if(compOn && winnerIdx !== null && document.getElementById('standby-overlay').style.display === 'none') startTimer(timerSettings.comp);
     }
 
     function showAnswer() { stopTimer(); if(questions.length > 0) { document.getElementById('g-res').innerText = "參考答案: " + questions[curIdx].fullAns; document.getElementById('g-res').style.display = 'block'; showTime = true; } }
@@ -330,15 +349,15 @@
     function upImg(e, i) { const reader = new FileReader(); reader.onload = (ev) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const MAX_W = 800; let w = img.width, h = img.height; if (w > MAX_W) { h *= MAX_W/w; w = MAX_W; } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); teams[i].bg = canvas.toDataURL('image/jpeg', 0.8); saveState(); renderSetup(); }; img.src = ev.target.result; }; reader.readAsDataURL(e.target.files[0]); }
     function removeImg(i) { teams[i].bg = ""; saveState(); renderSetup(); }
     function toggleBuzzer() { compOn = false; buzzerOn = !buzzerOn; if(buzzerOn) winnerIdx = null; syncUI(); renderGame(); }
-    function toggleComp() { buzzerOn = false; compOn = !compOn; if(!compOn) winnerIdx = null; syncUI(); renderGame(); }
+    function toggleComp() { buzzerOn = false; compOn = !compOn; if(!compOn) { winnerIdx = null; stopTimer(); } else if(winnerIdx !== null) startTimer(timerSettings.comp); syncUI(); renderGame(); }
     function syncUI() { document.getElementById('btn-buzzer').style.background = buzzerOn ? "var(--success)" : "var(--error)"; document.getElementById('btn-comp').style.background = compOn ? "var(--success)" : "var(--error)"; }
-    function manuallySelect() { winnerIdx = document.getElementById('sel-team').value === "" ? null : parseInt(document.getElementById('sel-team').value); renderGame(); if(compOn && winnerIdx !== null) startTimer(timerSettings.comp); }
+    function manuallySelect() { winnerIdx = document.getElementById('sel-team').value === "" ? null : parseInt(document.getElementById('sel-team').value); renderGame(); if(compOn && winnerIdx !== null && document.getElementById('standby-overlay').style.display === 'none') startTimer(timerSettings.comp); }
     function resetRound() { stopTimer(); if(!compOn) winnerIdx = null; hasTried = [false, false, false, false]; answered = false; document.getElementById('judge-ui').classList.remove('locked'); document.getElementById('buzzer-overlay').style.display = 'none'; renderGame(); }
     function closeOverlay() { document.getElementById('buzzer-overlay').style.display = 'none'; renderGame(); startTimer(timerSettings.toss); }
     function startTimer(seconds) { stopTimer(); let timeLeft = seconds; const display = document.getElementById('timer-display'); display.innerText = timeLeft; display.style.display = 'block'; timerInterval = setInterval(() => { timeLeft--; display.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); display.innerText = "時間到!"; } }, 1000); }
     function stopTimer() { clearInterval(timerInterval); document.getElementById('timer-display').style.display = 'none'; }
-    function loadAudio(e, type) { const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) { standbyAudioObj.src = ev.target.result; } saveState(); }; reader.readAsDataURL(e.target.files[0]); }
-    function playSfx(type) { if(audioData[type]) new Audio(audioData[type]).play(); }
+    function loadAudio(e, type) { const file = e.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = (ev) => { audioData[type] = ev.target.result; if(type==='standby_music' && standbyAudioObj) { standbyAudioObj.src = ev.target.result; } saveState(); }; reader.readAsDataURL(file); }
+    function playSfx(type) { if(audioData[type] && audioData[type] !== "") new Audio(audioData[type]).play(); }
 
     document.addEventListener('keydown', (e) => {
         if (!document.getElementById('game').classList.contains('active')) return;
@@ -365,7 +384,7 @@
     });
 
     function renderSetup() { const ui = document.getElementById('team-setup-ui'); ui.innerHTML = teams.map((t, i) => `<div class="admin-box" style="margin:0; padding:15px;"><b>隊伍 ${i+1} 名稱</b><input type="text" onchange="teams[${i}].name=this.value; saveState()" value="${t.name || ''}"><div style="display:flex; align-items:center; gap:5px;"><input type="file" onchange="upImg(event, ${i})" style="flex:1"><button class="remove-img-btn" onclick="removeImg(${i})">移除圖片</button></div><div style="height:35px; background:url('${t.bg}') center/cover; margin-top:8px; border-radius:6px; border:1px solid #ddd"></div></div>`).join(''); }
-    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V8_backup.json'; a.click(); }
+    function downloadQsOnly() { const blob = new Blob([JSON.stringify(questions.map(q => ({ type: q.type, cat: q.cat, ptsWin: q.ptsWin, ptsLose: q.ptsLose, text: q.text, ans: q.ans, fullAns: q.fullAns, opts: q.opts })), null, 2)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='quiz_TF_V10_backup.json'; a.click(); }
     function uploadQs(e) { const r = new FileReader(); r.onload = (ev) => { questions = JSON.parse(ev.target.result); curIdx = 0; saveState(); location.reload(); }; r.readAsText(e.target.files[0]); }
 </script>
 </body>
